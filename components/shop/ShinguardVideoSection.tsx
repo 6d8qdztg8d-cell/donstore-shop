@@ -27,8 +27,8 @@ export default function ShinguardVideoSection() {
   const [phase, setPhase] = useState(0);
 
   useEffect(() => {
-    const video = videoRef.current;
-    if (!video) return;
+    if (!videoRef.current) return;
+    const video = videoRef.current as HTMLVideoElement;
 
     let duration = 0;
     let smooth = 0;
@@ -54,7 +54,8 @@ export default function ShinguardVideoSection() {
 
       if (!unlocked && p > 0) {
         unlocked = true;
-        video.play().then(() => { video.pause(); video.currentTime = 0; }).catch(() => {});
+        const v = video;
+        v.play().then(() => { v.pause(); v.currentTime = 0; }).catch(() => {});
       }
 
       const target = p * Math.max(0, duration - 0.04);

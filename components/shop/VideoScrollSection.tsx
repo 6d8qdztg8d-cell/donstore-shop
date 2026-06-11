@@ -33,8 +33,8 @@ export default function VideoScrollSection() {
   const [phase, setPhase] = useState(0);
 
   useEffect(() => {
-    const video = videoRef.current;
-    if (!video) return;
+    if (!videoRef.current) return;
+    const video = videoRef.current as HTMLVideoElement;
 
     let duration = 0;
     let smooth = 0;
