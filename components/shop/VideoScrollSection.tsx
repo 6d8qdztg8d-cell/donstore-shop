@@ -21,11 +21,6 @@ const PHASES = [
   },
 ];
 
-/**
- * Bildschirmfüllendes Scroll-Video: Die Sektion ist 400vh hoch, das Video
- * klebt fullscreen im Viewport. Die Scrollposition steuert die Frames.
- * Das Video ist all-intra kodiert (jeder Frame ein Keyframe) → weiches Seeking.
- */
 export default function VideoScrollSection() {
   const sectionRef = useRef<HTMLElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -33,24 +28,23 @@ export default function VideoScrollSection() {
   const [phase, setPhase] = useState(0);
 
   useEffect(() => {
-    if (!videoRef.current) return;
-    const video = videoRef.current as HTMLVideoElement;
+    const video = videoRef.current;
+    if (!video) return;
 
-    let duration = 0;
-    let smooth = 0;
     let raf = 0;
-    let objectUrl = "";
-    let cancelled = false;
+    let smooth = 0;
     let unlocked = false;
-
-    const setDur = () => {
-      if (video.duration && isFinite(video.duration)) duration = video.duration;
-    };
+    let cancelled = false;
 
     function loop() {
+      if (cancelled) return;
       raf = requestAnimationFrame(loop);
+
       const section = sectionRef.current;
-      if (!section || duration === 0) return;
+      if (!section) return;
+
+      const duration = video!.duration;
+      if (!duration || !isFinite(duration)) return;
 
       const rect = section.getBoundingClientRect();
       const total = section.offsetHeight - window.innerHeight;
@@ -58,17 +52,17 @@ export default function VideoScrollSection() {
 
       const p = Math.min(1, Math.max(0, -rect.top / total));
 
-      // Browser-Unlock beim ersten Scroll (nicht beim Laden, damit kein Autoplay)
+      // Unlock browser autoplay on first scroll
       if (!unlocked && p > 0) {
         unlocked = true;
-        video.play().then(() => { video.pause(); video.currentTime = 0; }).catch(() => {});
+        const v = video!;
+        v.play().then(() => { v.pause(); v.currentTime = 0; }).catch(() => {});
       }
 
-      // Frames weich zur Scrollposition lerpen
       const target = p * Math.max(0, duration - 0.04);
       smooth += (target - smooth) * 0.22;
-      if (!video.seeking && Math.abs(video.currentTime - smooth) > 0.02) {
-        video.currentTime = smooth;
+      if (!video!.seeking && Math.abs(video!.currentTime - smooth) > 0.02) {
+        video!.currentTime = smooth;
       }
 
       if (progressRef.current) {
@@ -79,35 +73,11 @@ export default function VideoScrollSection() {
       setPhase((prev) => (prev === idx ? prev : idx));
     }
 
-    function start() {
-      if (cancelled) return;
-      video.addEventListener("loadedmetadata", setDur);
-      setDur();
-      raf = requestAnimationFrame(loop);
-    }
-
-    // Safari ignoriert preload="auto" weitgehend und scrubbt auf
-    // Netzwerk-Streams unzuverlässig → Video komplett als Blob laden,
-    // dann ist jeder Seek sofort und exakt.
-    fetch(video.src)
-      .then((r) => {
-        if (!r.ok) throw new Error(String(r.status));
-        return r.blob();
-      })
-      .then((blob) => {
-        if (cancelled) return;
-        objectUrl = URL.createObjectURL(blob);
-        video.src = objectUrl;
-        video.load();
-        start();
-      })
-      .catch(() => start()); // Fallback: direkt mit Netzwerk-Quelle
+    raf = requestAnimationFrame(loop);
 
     return () => {
       cancelled = true;
       cancelAnimationFrame(raf);
-      video.removeEventListener("loadedmetadata", setDur);
-      if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
   }, []);
 
@@ -119,7 +89,6 @@ export default function VideoScrollSection() {
     >
       <div className="sticky top-0 h-screen w-full bg-white overflow-hidden">
 
-        {/* Bildschirmfüllendes Video — 16:9, Socke rechts positioniert */}
         <video
           ref={videoRef}
           src="/videos/socks_rotation_scrub.mp4"
