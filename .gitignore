@@ -40,8 +40,10 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# Videos (zu groß für Git)
-/public/videos/
+# Videos (nicht verwendete / zu große Videos nicht pushen)
+/public/videos/shinguards_scroll.mp4
+/public/videos/socks_3axis_rotation.mp4
+/public/videos/socks_rotation_wide.mp4
 
 # Ungenutzte Epic-Bilder
 /public/images/*_epic.png
