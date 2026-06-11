@@ -39,3 +39,10 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Videos (zu groß für Git)
+/public/videos/
+
+# Ungenutzte Epic-Bilder
+/public/images/*_epic.png
+/public/images/*_epic.jpg

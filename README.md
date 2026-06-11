@@ -1,36 +1,101 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Donstore Shop
 
-## Getting Started
+Vollständiger Next.js E-Commerce Shop für Donstore Grip Socks.
 
-First, run the development server:
+## Stack
+
+- **Next.js 16** (App Router, TypeScript)
+- **Tailwind CSS v4**
+- **PostgreSQL** + **Prisma ORM**
+- **Stripe** Checkout + Webhooks
+- **NextAuth** (Credentials) für Admin-Login
+- **Resend** für automatische E-Mails
+- **Zustand** für Cart-State
+
+---
+
+## Setup
+
+### 1. Abhängigkeiten installieren
+
+```bash
+npm install
+```
+
+### 2. Umgebungsvariablen
+
+```bash
+cp .env.example .env
+```
+
+`.env` ausfüllen (alle Werte erforderlich):
+
+```
+DATABASE_URL="postgresql://user:password@localhost:5432/donstore"
+NEXTAUTH_SECRET="mindestens-32-zeichen-secret"
+NEXTAUTH_URL="http://localhost:3000"
+STRIPE_SECRET_KEY="sk_test_..."
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY="pk_test_..."
+STRIPE_WEBHOOK_SECRET="whsec_..."
+RESEND_API_KEY="re_..."
+ADMIN_EMAIL="admin@donstore.de"
+NEXT_PUBLIC_SITE_URL="http://localhost:3000"
+```
+
+### 3. Datenbank
+
+```bash
+npx prisma migrate dev --name init
+npx prisma db seed
+```
+
+### 4. Dev starten
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+→ http://localhost:3000
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+---
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Admin
 
-## Learn More
+http://localhost:3000/admin/login
 
-To learn more about Next.js, take a look at the following resources:
+Nach Seed: `admin@donstore.de` / `admin123!` — **sofort ändern!**
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+---
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Stripe Webhooks (lokal)
 
-## Deploy on Vercel
+```bash
+stripe listen --forward-to localhost:3000/api/stripe/webhook
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+---
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Build & Deploy
+
+```bash
+npm run build && npm run start
+```
+
+**Vercel:** Repo verknüpfen → Env-Vars eintragen → Deploy.
+
+---
+
+## Test-Checkliste
+
+- [ ] Warenkorb: Artikel hinzufügen, Menge ändern, entfernen
+- [ ] Rabattcode: `WELCOME10` (10%) oder `SPORT5` (5€)
+- [ ] Stripe: Karte `4242 4242 4242 4242`, Datum 12/34, CVC 123
+- [ ] Bestellung erscheint in Admin-Dashboard
+- [ ] E-Mail-Bestätigung kommt an
+- [ ] Admin-Login geschützt
+- [ ] Mobile Navigation funktioniert
+- [ ] Build fehlerfrei (`npm run build`)
+
+---
+
+> **Rechtlich:** Impressum, Datenschutz, AGB = Platzhalter. Vor Launch rechtlich prüfen lassen.
