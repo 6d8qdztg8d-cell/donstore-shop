@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, startTransition } from "react";
 import { ScrollGooeyText } from "@/components/ui/gooey-text-morphing";
 
 const PHASES = [
@@ -25,7 +25,12 @@ export default function VideoScrollSection() {
   const sectionRef = useRef<HTMLElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const progressRef = useRef<HTMLDivElement>(null);
-  const [phase, setPhase] = useState(0);
+
+  // Only GooeyText needs React state — everything else goes via DOM refs
+  const [gooeyIndex, setGooeyIndex] = useState(0);
+
+  const kickerRefs = useRef<(HTMLParagraphElement | null)[]>([]);
+  const bodyRefs = useRef<(HTMLParagraphElement | null)[]>([]);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -35,6 +40,30 @@ export default function VideoScrollSection() {
     let smooth = 0;
     let unlocked = false;
     let cancelled = false;
+    let currentPhase = -1;
+
+    function updateTextDOM(idx: number) {
+      PHASES.forEach((_, i) => {
+        const active = i === idx;
+        const past = i < idx;
+
+        const kicker = kickerRefs.current[i];
+        if (kicker) {
+          kicker.style.opacity = active ? "1" : "0";
+          kicker.style.transform = active ? "translateY(0)" : past ? "translateY(-12px)" : "translateY(12px)";
+        }
+
+        const body = bodyRefs.current[i];
+        if (body) {
+          body.style.opacity = active ? "1" : "0";
+          body.style.transform = active ? "translateY(0)" : past ? "translateY(-12px)" : "translateY(12px)";
+        }
+      });
+    }
+
+    // Set initial state without waiting for first scroll
+    updateTextDOM(0);
+    currentPhase = 0;
 
     function loop() {
       if (cancelled) return;
@@ -52,7 +81,6 @@ export default function VideoScrollSection() {
 
       const p = Math.min(1, Math.max(0, -rect.top / total));
 
-      // Unlock browser autoplay on first scroll
       if (!unlocked && p > 0) {
         unlocked = true;
         const v = video!;
@@ -70,7 +98,13 @@ export default function VideoScrollSection() {
       }
 
       const idx = Math.min(PHASES.length - 1, Math.floor(p * PHASES.length));
-      setPhase((prev) => (prev === idx ? prev : idx));
+      if (idx !== currentPhase) {
+        currentPhase = idx;
+        // Direct DOM update — zero React overhead, no re-render
+        updateTextDOM(idx);
+        // GooeyText still needs React state, but deferred so it never blocks the rAF
+        startTransition(() => setGooeyIndex(idx));
+      }
     }
 
     raf = requestAnimationFrame(loop);
@@ -99,48 +133,43 @@ export default function VideoScrollSection() {
           aria-label="Donstore Grip Socks 360° Rotation — durch Scrollen drehen"
         />
 
-        {/* Text-Overlay links */}
         <div className="absolute inset-0 flex items-center pointer-events-none">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
             <div className="max-w-md pointer-events-auto">
 
-              {/* Kicker — fade */}
+              {/* Kicker — updated directly via DOM ref, no React re-render */}
               <div className="relative h-6 mb-4 overflow-hidden">
                 {PHASES.map((ph, i) => (
                   <p
                     key={ph.kicker}
+                    ref={(el) => { kickerRefs.current[i] = el; }}
                     className="absolute inset-0 text-xs font-bold tracking-widest uppercase text-[#999] transition-all duration-500 ease-out"
-                    style={{
-                      opacity: phase === i ? 1 : 0,
-                      transform: phase === i ? "translateY(0)" : phase > i ? "translateY(-12px)" : "translateY(12px)",
-                    }}
+                    style={{ opacity: i === 0 ? 1 : 0, transform: i === 0 ? "translateY(0)" : "translateY(12px)" }}
                   >
                     {ph.kicker}
                   </p>
                 ))}
               </div>
 
-              {/* Titel — Gooey Morph */}
+              {/* Titel — GooeyText via startTransition (deferred, low-priority) */}
               <div style={{ fontFamily: "var(--font-barlow-condensed), 'Barlow Condensed', sans-serif" }}>
                 <ScrollGooeyText
                   texts={PHASES.map((ph) => ph.title)}
-                  activeIndex={phase}
+                  activeIndex={gooeyIndex}
                   morphTime={0.55}
                   className="mb-5"
                   textClassName="font-black uppercase leading-none text-[#0a0a0a] text-5xl sm:text-6xl"
                 />
               </div>
 
-              {/* Body-Text — fade */}
+              {/* Body-Text — updated directly via DOM ref, no React re-render */}
               <div className="relative mb-8" style={{ minHeight: "5rem" }}>
                 {PHASES.map((ph, i) => (
                   <p
                     key={ph.kicker}
+                    ref={(el) => { bodyRefs.current[i] = el; }}
                     className="absolute inset-0 text-[#666] text-lg leading-relaxed transition-all duration-500 ease-out"
-                    style={{
-                      opacity: phase === i ? 1 : 0,
-                      transform: phase === i ? "translateY(0)" : phase > i ? "translateY(-12px)" : "translateY(12px)",
-                    }}
+                    style={{ opacity: i === 0 ? 1 : 0, transform: i === 0 ? "translateY(0)" : "translateY(12px)" }}
                   >
                     {ph.text}
                   </p>
@@ -157,7 +186,6 @@ export default function VideoScrollSection() {
           </div>
         </div>
 
-        {/* Scroll-Fortschritt unten */}
         <div className="absolute bottom-0 left-0 right-0 h-1 bg-[#eee]" aria-hidden="true">
           <div
             ref={progressRef}
@@ -166,7 +194,6 @@ export default function VideoScrollSection() {
           />
         </div>
 
-        {/* Scroll-Hinweis */}
         <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-2 text-[#999] text-xs font-bold tracking-widest uppercase whitespace-nowrap" aria-hidden="true">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="animate-bounce">
             <path d="M12 5v14M19 12l-7 7-7-7" />
