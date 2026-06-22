@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, startTransition } from "react";
-import { ScrollGooeyText } from "@/components/ui/gooey-text-morphing";
+import { useEffect, useRef } from "react";
 
 const PHASES = [
   {
@@ -21,16 +20,15 @@ const PHASES = [
   },
 ];
 
+const TRANSITION = "opacity 0.55s cubic-bezier(0.4,0,0.2,1), transform 0.55s cubic-bezier(0.4,0,0.2,1)";
+
 export default function VideoScrollSection() {
   const sectionRef = useRef<HTMLElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const progressRef = useRef<HTMLDivElement>(null);
-
-  // Only GooeyText needs React state — everything else goes via DOM refs
-  const [gooeyIndex, setGooeyIndex] = useState(0);
-
-  const kickerRefs = useRef<(HTMLParagraphElement | null)[]>([]);
-  const bodyRefs = useRef<(HTMLParagraphElement | null)[]>([]);
+  const kickerRefs = useRef<(HTMLElement | null)[]>([]);
+  const titleRefs = useRef<(HTMLElement | null)[]>([]);
+  const bodyRefs = useRef<(HTMLElement | null)[]>([]);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -40,30 +38,21 @@ export default function VideoScrollSection() {
     let smooth = 0;
     let unlocked = false;
     let cancelled = false;
-    let currentPhase = -1;
+    let currentPhase = 0;
 
-    function updateTextDOM(idx: number) {
+    function setPhaseDOM(idx: number) {
       PHASES.forEach((_, i) => {
         const active = i === idx;
-        const past = i < idx;
-
-        const kicker = kickerRefs.current[i];
-        if (kicker) {
-          kicker.style.opacity = active ? "1" : "0";
-          kicker.style.transform = active ? "translateY(0)" : past ? "translateY(-12px)" : "translateY(12px)";
-        }
-
-        const body = bodyRefs.current[i];
-        if (body) {
-          body.style.opacity = active ? "1" : "0";
-          body.style.transform = active ? "translateY(0)" : past ? "translateY(-12px)" : "translateY(12px)";
+        const out = i < idx ? "translateY(-8px)" : "translateY(8px)";
+        for (const ref of [kickerRefs.current[i], titleRefs.current[i], bodyRefs.current[i]]) {
+          if (!ref) continue;
+          ref.style.opacity = active ? "1" : "0";
+          ref.style.transform = active ? "translateY(0)" : out;
         }
       });
     }
 
-    // Set initial state without waiting for first scroll
-    updateTextDOM(0);
-    currentPhase = 0;
+    setPhaseDOM(0);
 
     function loop() {
       if (cancelled) return;
@@ -100,15 +89,11 @@ export default function VideoScrollSection() {
       const idx = Math.min(PHASES.length - 1, Math.floor(p * PHASES.length));
       if (idx !== currentPhase) {
         currentPhase = idx;
-        // Direct DOM update — zero React overhead, no re-render
-        updateTextDOM(idx);
-        // GooeyText still needs React state, but deferred so it never blocks the rAF
-        startTransition(() => setGooeyIndex(idx));
+        setPhaseDOM(idx);
       }
     }
 
     raf = requestAnimationFrame(loop);
-
     return () => {
       cancelled = true;
       cancelAnimationFrame(raf);
@@ -130,46 +115,63 @@ export default function VideoScrollSection() {
           playsInline
           preload="auto"
           className="absolute inset-0 w-full h-full object-cover"
-          aria-label="Donstore Grip Socks 360° Rotation — durch Scrollen drehen"
+          aria-label="Donstore Grip Socks 360° Rotation"
         />
 
         <div className="absolute inset-0 flex items-center pointer-events-none">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
-            <div className="max-w-md pointer-events-auto">
-
-              {/* Kicker — updated directly via DOM ref, no React re-render */}
+            <div
+              className="max-w-md pointer-events-auto"
+              style={{ fontFamily: "var(--font-barlow-condensed), 'Barlow Condensed', sans-serif" }}
+            >
+              {/* Kicker */}
               <div className="relative h-6 mb-4 overflow-hidden">
                 {PHASES.map((ph, i) => (
                   <p
                     key={ph.kicker}
                     ref={(el) => { kickerRefs.current[i] = el; }}
-                    className="absolute inset-0 text-xs font-bold tracking-widest uppercase text-[#999] transition-all duration-500 ease-out"
-                    style={{ opacity: i === 0 ? 1 : 0, transform: i === 0 ? "translateY(0)" : "translateY(12px)" }}
+                    className="absolute inset-0 text-xs font-bold tracking-widest uppercase text-[#999]"
+                    style={{
+                      opacity: i === 0 ? 1 : 0,
+                      transform: i === 0 ? "translateY(0)" : "translateY(8px)",
+                      transition: TRANSITION,
+                    }}
                   >
                     {ph.kicker}
                   </p>
                 ))}
               </div>
 
-              {/* Titel — GooeyText via startTransition (deferred, low-priority) */}
-              <div style={{ fontFamily: "var(--font-barlow-condensed), 'Barlow Condensed', sans-serif" }}>
-                <ScrollGooeyText
-                  texts={PHASES.map((ph) => ph.title)}
-                  activeIndex={gooeyIndex}
-                  morphTime={0.55}
-                  className="mb-5"
-                  textClassName="font-black uppercase leading-none text-[#0a0a0a] text-5xl sm:text-6xl"
-                />
+              {/* Titel */}
+              <div className="relative mb-5" style={{ minHeight: "4rem" }}>
+                {PHASES.map((ph, i) => (
+                  <span
+                    key={ph.title}
+                    ref={(el) => { titleRefs.current[i] = el; }}
+                    className={`select-none font-black uppercase leading-none text-[#0a0a0a] text-5xl sm:text-6xl${i === 0 ? " block" : " absolute inset-0 block"}`}
+                    style={{
+                      opacity: i === 0 ? 1 : 0,
+                      transform: i === 0 ? "translateY(0)" : "translateY(8px)",
+                      transition: TRANSITION,
+                    }}
+                  >
+                    {ph.title}
+                  </span>
+                ))}
               </div>
 
-              {/* Body-Text — updated directly via DOM ref, no React re-render */}
+              {/* Body */}
               <div className="relative mb-8" style={{ minHeight: "5rem" }}>
                 {PHASES.map((ph, i) => (
                   <p
                     key={ph.kicker}
                     ref={(el) => { bodyRefs.current[i] = el; }}
-                    className="absolute inset-0 text-[#666] text-lg leading-relaxed transition-all duration-500 ease-out"
-                    style={{ opacity: i === 0 ? 1 : 0, transform: i === 0 ? "translateY(0)" : "translateY(12px)" }}
+                    className={`text-[#666] text-lg leading-relaxed${i === 0 ? "" : " absolute inset-0"}`}
+                    style={{
+                      opacity: i === 0 ? 1 : 0,
+                      transform: i === 0 ? "translateY(0)" : "translateY(8px)",
+                      transition: TRANSITION,
+                    }}
                   >
                     {ph.text}
                   </p>
